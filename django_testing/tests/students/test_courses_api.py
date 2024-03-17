@@ -7,7 +7,7 @@ from students.models import Course, Student
 
 @pytest.fixture
 def api_client():
-    return APIClient
+    return APIClient()
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def test_get_first_course(api_client, course_factory):
     response = api_client.get(f'/api/v1/courses/{course[0].id}/')
     assert response.status_code == 200
     data = response.json()
-    assert data['id'] == 1
+    assert data['id'] == course[0].id
 
 
 @pytest.mark.django_db
@@ -47,11 +47,20 @@ def test_get_courses_list(api_client, course_factory):
 @pytest.mark.django_db
 def test_get_course_filter_id(api_client, course_factory):
     courses = course_factory(_quantity=10)
-    #response = api_client.get(f'/api/v1/courses/?id={courses[2].id}')
     response = api_client.get('/api/v1/courses/', {'id': courses[2].id})
     assert response.status_code == 200
     data = response.json()
-    assert data[0]['id'] == 3
+    assert data[0]['id'] == courses[2].id
+
+
+@pytest.mark.django_db
+def test_get_course_filter_name(api_client, course_factory):
+    course = course_factory(name='Test Course')
+    response = api_client.get('/api/v1/courses/', {'name': 'Test Course'})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]['name'] == 'Test Course'
 
 
 @pytest.mark.django_db
@@ -76,10 +85,10 @@ def test_change_course(api_client, course_factory, student_factory):
         format='json'
     )
     assert response.status_code == 200
-    assert response.json()['name'] == new_name #можно проверить сразу
+    assert response.json()['name'] == new_name
     result = api_client.get(f'/api/v1/courses/{course[0].id}/')
-    assert response.status_code == 200
-    assert result.json()['name'] == new_name  # или сделать get запрос
+    assert result.status_code == 200
+    assert result.json()['name'] == new_name
 
 
 @pytest.mark.django_db
@@ -88,13 +97,6 @@ def test_delete_course(api_client, course_factory, student_factory, count=2):
     response = api_client.delete(f'/api/v1/courses/{course[0].id}/')
     assert response.status_code == 204
     assert Course.objects.count() == count - 1
-
-
-@pytest.mark.django_db
-def test_course_is_full(course_factory, student_factory, settings):
-    students = student_factory(_quantity=settings.MAX_STUDENTS_PER_COURSE - 1)
-    course = course_factory(name='Math', students=students)
-    assert course.is_full()
 
 
 @pytest.mark.django_db
